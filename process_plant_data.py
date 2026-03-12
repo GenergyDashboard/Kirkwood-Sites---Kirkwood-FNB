@@ -42,8 +42,8 @@ STATE_FILE = _HERE / "data/alert_state.json"
 PV_COLUMN_INDEX     = int(os.environ.get("PV_COLUMN_INDEX", "4"))  # default = column E
 
 # Production thresholds
-DAILY_EXPECTED_KWH  = float(os.environ.get("DAILY_EXPECTED_KWH", "1400.0"))
-DAILY_LOW_KWH       = float(os.environ.get("DAILY_LOW_KWH", "304.0"))
+DAILY_EXPECTED_KWH  = float(os.environ.get("DAILY_EXPECTED_KWH", "128.0"))
+DAILY_LOW_KWH       = float(os.environ.get("DAILY_LOW_KWH", "36.0"))
 LOW_THRESHOLD_PCT   = 0.30     # alert when projected daily < 30% of expected
 OFFLINE_THRESHOLD   = 0.01     # kWh — treat as offline if below this
 
