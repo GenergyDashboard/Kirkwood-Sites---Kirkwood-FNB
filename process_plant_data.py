@@ -9,8 +9,8 @@ Produces data/processed.json with:
   - Telegram alert if status changes to low/offline
 
 Thresholds (configurable below):
-  DAILY_EXPECTED_KWH  = 572   (0.5 MWh average day)
-  DAILY_LOW_KWH       = 129    (known low production day)
+  DAILY_EXPECTED_KWH  = 1400   (1.4 MWh average day)
+  DAILY_LOW_KWH       = 304    (known low production day)
   LOW_THRESHOLD_PCT   = 0.30   (alert if < 30% of expected by end of day)
   OFFLINE_THRESHOLD   = 0.01   (alert if total < 0.01 kWh — nothing recorded)
 """
@@ -35,9 +35,15 @@ RAW_FILE   = _HERE / Path(os.environ.get("RAW_FILE",    "data/raw_report.xlsx"))
 OUTPUT_FILE= _HERE / Path(os.environ.get("OUTPUT_FILE", "data/processed.json"))
 STATE_FILE = _HERE / "data/alert_state.json"
 
+# PV Yield column — 0-based index (A=0, B=1, C=2, D=3, E=4, F=5...)
+# Script first tries to find the column by header name "PV Yield" automatically.
+# PV_COLUMN_INDEX is only used as a fallback if the header name isn't found.
+# Override per-site via GitHub secret if needed.
+PV_COLUMN_INDEX     = int(os.environ.get("PV_COLUMN_INDEX", "4"))  # default = column E
+
 # Production thresholds
-DAILY_EXPECTED_KWH  = 1400.0   # average good day
-DAILY_LOW_KWH       = 304.0    # known low-production day
+DAILY_EXPECTED_KWH  = float(os.environ.get("DAILY_EXPECTED_KWH", "1400.0"))
+DAILY_LOW_KWH       = float(os.environ.get("DAILY_LOW_KWH", "304.0"))
 LOW_THRESHOLD_PCT   = 0.30     # alert when projected daily < 30% of expected
 OFFLINE_THRESHOLD   = 0.01     # kWh — treat as offline if below this
 
@@ -74,7 +80,7 @@ def parse_report(filepath: Path) -> dict:
     headers = [str(h).strip() if not pd.isna(h) else "" for h in df.iloc[1].tolist()]
     pv_col = next(
         (i for i, h in enumerate(headers) if "PV Yield" in h),
-        4,  # fallback to column E (index 4)
+        PV_COLUMN_INDEX,  # fallback to configured index (default col E = 4)
     )
     print(f"  ℹ️  PV Yield column index: {pv_col}  (header: '{headers[pv_col]}')")
 
