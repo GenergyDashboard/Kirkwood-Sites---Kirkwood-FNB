@@ -232,11 +232,11 @@
   <!-- Threshold reference -->
   <div class="thresholds">
     <div class="thr-item expected">
-      <div class="thr-val">1,400 kWh</div>
+      <div class="thr-val" id="thr-expected">—</div>
       <div class="thr-lbl">Average day (expected)</div>
     </div>
     <div class="thr-item low-day">
-      <div class="thr-val">304 kWh</div>
+      <div class="thr-val" id="thr-low">—</div>
       <div class="thr-lbl">Known low day</div>
     </div>
   </div>
@@ -293,7 +293,13 @@
       const lastHour = data.last_hour != null ? (data.last_hour + ":00") : "—";
       document.getElementById("last-hour").textContent = lastHour;
 
-      const expected = (data.thresholds && data.thresholds.expected_daily_kwh) || 1400;
+      // Threshold cards
+      const expected = (data.thresholds && data.thresholds.expected_daily_kwh) || 0;
+      const lowDay   = (data.thresholds && data.thresholds.low_day_kwh) || 0;
+      document.getElementById("thr-expected").textContent = expected.toLocaleString() + " kWh";
+      document.getElementById("thr-low").textContent      = lowDay.toLocaleString() + " kWh";
+
+      // % of expected day
       const pct = expected > 0 ? ((total / expected) * 100).toFixed(0) + "%" : "—";
       document.getElementById("expected-pct").textContent = pct;
 
