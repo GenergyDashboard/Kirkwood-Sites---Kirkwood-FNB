@@ -28,8 +28,8 @@ import requests
 # =============================================================================
 # ✏️  SITE THRESHOLDS — edit these directly, do NOT set as GitHub secrets
 # =============================================================================
-DAILY_EXPECTED_KWH = 1400.0   # Average good day for this site (kWh)
-DAILY_LOW_KWH      = 304.0    # Known low-production day for this site (kWh)
+DAILY_EXPECTED_KWH = 215.0   # Average good day for this site (kWh)
+DAILY_LOW_KWH      = 36.0    # Known low-production day for this site (kWh)
 
 # PV Yield column fallback — 0-based index (A=0, B=1, C=2, D=3, E=4, F=5...)
 # The script auto-detects by scanning for "PV Yield" in the header row first.
