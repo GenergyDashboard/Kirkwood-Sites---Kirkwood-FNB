@@ -1,0 +1,62 @@
+name: Solar Monitor
+
+on:
+  schedule:
+    # Runs every hour 05:00–18:00 UTC = 07:00–20:00 SAST
+    - cron: '0 5-18 * * *'
+  workflow_dispatch:   # allows manual trigger from GitHub UI
+
+permissions:
+  contents: write      # needed to commit processed.json back to the repo
+
+jobs:
+  monitor:
+    runs-on: ubuntu-latest
+
+    steps:
+      # ── 1. Checkout repo ────────────────────────────────────────────────
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      # ── 2. Python setup ─────────────────────────────────────────────────
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+          cache: 'pip'
+
+      # ── 3. Install Python dependencies ──────────────────────────────────
+      - name: Install Python dependencies
+        run: |
+          pip install playwright pandas openpyxl requests
+
+      # ── 4. Install Chromium for Playwright ──────────────────────────────
+      - name: Install Playwright browsers
+        run: playwright install chromium --with-deps
+
+      # ── 5. Download data from FusionSolar ───────────────────────────────
+      - name: Download plant report
+        env:
+          FUSIONSOLAR_USERNAME: ${{ secrets.FUSIONSOLAR_USERNAME }}
+          FUSIONSOLAR_PASSWORD: ${{ secrets.FUSIONSOLAR_PASSWORD }}
+          PLANT_NAME:           ${{ secrets.PLANT_NAME }}          # optional override
+        run: python download_plant_data.py
+
+      # ── 6. Process data + send Telegram alert if needed ─────────────────
+      - name: Process data and alert
+        env:
+          TELEGRAM_BOT_TOKEN: ${{ secrets.TELEGRAM_BOT_TOKEN }}
+          TELEGRAM_CHAT_ID:   ${{ secrets.TELEGRAM_CHAT_ID }}
+          PLANT_NAME:         ${{ secrets.PLANT_NAME }}
+        run: python process_plant_data.py
+
+      # ── 7. Commit updated dashboard data back to repo ───────────────────
+      #    This updates data/processed.json so GitHub Pages serves fresh data
+      - name: Commit updated data
+        run: |
+          git config user.name  "github-actions[bot]"
+          git config user.email "github-actions[bot]@users.noreply.github.com"
+          git add data/processed.json data/alert_state.json
+          # Only commit if something actually changed
+          git diff --staged --quiet || git commit -m "chore: update solar data $(date -u '+%Y-%m-%d %H:%M UTC')"
+          git push
