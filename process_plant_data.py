@@ -9,8 +9,8 @@ Produces data/processed.json with:
   - Telegram alert if status changes to low/offline
 
 Thresholds (configurable below):
-  DAILY_EXPECTED_KWH  = 1400   (1.4 MWh average day)
-  DAILY_LOW_KWH       = 304    (known low production day)
+  DAILY_EXPECTED_KWH  = 572   (0.5 MWh average day)
+  DAILY_LOW_KWH       = 129    (known low production day)
   LOW_THRESHOLD_PCT   = 0.30   (alert if < 30% of expected by end of day)
   OFFLINE_THRESHOLD   = 0.01   (alert if total < 0.01 kWh — nothing recorded)
 """
