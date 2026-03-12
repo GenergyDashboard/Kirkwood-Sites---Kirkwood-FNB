@@ -43,8 +43,8 @@ import requests
 # ✏️  SITE THRESHOLDS — only these two values change between sites
 #     Edit directly here. Do NOT set as GitHub secrets.
 # =============================================================================
-DAILY_EXPECTED_KWH = 1400.0   # Average good day for this site (kWh)
-DAILY_LOW_KWH      = 304.0    # Known worst/low production day (kWh)
+DAILY_EXPECTED_KWH = 214.0   # Average good day for this site (kWh)
+DAILY_LOW_KWH      = 36.0    # Known worst/low production day (kWh)
 
 # PV Yield column fallback — 0-based (A=0, B=1, C=2, D=3, E=4, F=5...)
 # Auto-detected from header name first; only used as fallback.
