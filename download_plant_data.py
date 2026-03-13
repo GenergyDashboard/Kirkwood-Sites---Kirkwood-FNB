@@ -223,6 +223,47 @@ def download_plant_data():
             human_delay(5, 8)
             random_mouse_movement(page)
 
+            # ── Dismiss any modal dialogs before interacting ───────────────
+            print("🔔 Checking for modal dialogs...")
+            modal_dismissed = False
+            modal_selectors = [
+                # Close button inside dpdesign modal (the one seen in logs)
+                ".dpdesign-modal-wrap .dpdesign-modal-close",
+                ".dpdesign-modal-wrap button[aria-label='Close']",
+                ".dpdesign-modal-wrap .dpdesign-icon-close",
+                # Generic ant-design / common close patterns
+                ".ant-modal-close",
+                ".ant-modal-close-x",
+                "button[aria-label='Close']",
+                ".modal-close",
+                # Any visible × / close button
+                "button:has-text('×')",
+                "button:has-text('✕')",
+                "button:has-text('Close')",
+                "button:has-text('OK')",
+                "button:has-text('Got it')",
+                "button:has-text('Confirm')",
+            ]
+            for sel in modal_selectors:
+                try:
+                    btn = page.locator(sel).first
+                    if btn.is_visible(timeout=2000):
+                        btn.click()
+                        print(f"  ✅ Dismissed modal via: {sel}")
+                        modal_dismissed = True
+                        human_delay(1, 2)
+                        break
+                except Exception:
+                    continue
+            if not modal_dismissed:
+                # Try pressing Escape as a last resort
+                try:
+                    page.keyboard.press("Escape")
+                    human_delay(0.5, 1)
+                    print("  ℹ️  No modal found (or dismissed via Escape)")
+                except Exception:
+                    pass
+
             # ── Step 3: Search for plant ───────────────────────────────────
             print(f"🔎 Step 4: Searching for '{plant_name}'...")
             search_field = find_search_field(page)
