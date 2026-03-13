@@ -468,11 +468,15 @@
     document.getElementById("last-hour").textContent = lastHour + ":00";
     const pctDay = dailyExp > 0 ? ((total / dailyExp) * 100).toFixed(0) + "%" : "—";
     document.getElementById("pct-day").textContent = pctDay;
+
+    // Pre-shift irradiation once — all calculations must use this same array
+    // so pills, tooltips and the chart line are all consistent
+    const irradShifted = [...irradiation.slice(1), 0];
+    const irradTotal   = irradShifted.reduce((s, v) => s + v, 0);
+
     // % of expected cumulative by this hour
-    // Use irradiation-weighted cumulative if available, else sine-bell
-    const irradTotal  = irradiation.reduce((s, v) => s + v, 0);
     const expNow = irradTotal > 0
-      ? irradiation.slice(0, lastHour + 1).reduce((s, v) => s + dailyExp * (v / irradTotal), 0)
+      ? irradShifted.slice(0, lastHour + 1).reduce((s, v) => s + dailyExp * (v / irradTotal), 0)
       : expectedByHour(lastHour, month, dailyExp);
     const pctHour = expNow > 0 ? ((total / expNow) * 100).toFixed(0) + "%" : "—";
     document.getElementById("pct-hour").textContent = pctHour;
@@ -481,7 +485,7 @@
     document.getElementById("thr-expected").textContent = dailyExp.toLocaleString() + " kWh";
     document.getElementById("thr-low").textContent      = lowDay.toLocaleString() + " kWh";
     const thisHourExp = irradTotal > 0
-      ? dailyExp * (irradiation[lastHour] / irradTotal)
+      ? dailyExp * (irradShifted[lastHour] / irradTotal)
       : expectedThisHour(lastHour, month, dailyExp);
     document.getElementById("thr-hour").textContent = thisHourExp.toFixed(1) + " kWh";
     document.querySelector(".pill.blue .pill-lbl").textContent = `Exp. ${lastHour}:00–${lastHour+1}:00`;
@@ -490,11 +494,11 @@
     document.getElementById("footer").textContent = "FusionSolar · " + (data.date || "");
 
     // Chart
-    renderChart(data.hourly_pv || [], lastHour, month, dailyExp, status, irradiation);
+    renderChart(data.hourly_pv || [], lastHour, month, dailyExp, status, irradShifted, irradTotal);
   }
 
   // ── Chart rendering ───────────────────────────────────────────────────────
-  function renderChart(hourly, lastHour, month, dailyExp, status, irradiation) {
+  function renderChart(hourly, lastHour, month, dailyExp, status, irradShifted, irradTotal) {
     const chart    = document.getElementById("bar-chart");
     const axisRow  = document.getElementById("axis-row");
     const refSvg   = document.getElementById("ref-svg");
@@ -505,13 +509,7 @@
     refSvg.innerHTML   = "";
     irradSvg.innerHTML = "";
 
-    // Shift irradiation 1h earlier (same shift used for the display area)
-    const irradShifted = [...irradiation.slice(1), 0];
-
-    // Per-hour expected values — use irradiation shape when available,
-    // fall back to pure sine-bell curve if irradiation data is missing.
-    // Use the same shifted array so the expected line aligns with the area.
-    const irradTotal = irradShifted.reduce((s, v) => s + v, 0);
+    // Per-hour expected values — irradiation-weighted when available, sine-bell fallback
     const hourlyExp = irradTotal > 0
       ? irradShifted.map(v => dailyExp * (v / irradTotal))
       : Array.from({ length: 24 }, (_, h) => expectedThisHour(h, month, dailyExp));
