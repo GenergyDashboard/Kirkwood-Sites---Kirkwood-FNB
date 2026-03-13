@@ -178,29 +178,27 @@
     .legend-dot.irrad  { background: rgba(250,204,21,0.55); border-radius: 2px; }
 
     /* ── The chart itself ────────────────────────────── */
-    /* chart-area stacks irrad SVG (bottom) → bars (middle) → ref SVG (top) */
+    /* chart-area wraps: [bar-zone (relative, SVGs overlay it)] + [axis-row] */
     .chart-area {
-      position: relative;
-      /* height is set by the bar-chart div; SVGs are absolute on top */
+      display: flex;
+      flex-direction: column;
     }
 
-    /* bars sit on a strict baseline — use a grid so all columns are equal */
+    /* bar-zone: only bars live here, SVGs overlay it exactly */
+    .bar-zone {
+      position: relative;
+      height: 160px;
+    }
+
+    /* bars grid — fills bar-zone completely, no labels inside */
     .bar-chart {
       display: grid;
       grid-template-columns: repeat(24, 1fr);
-      align-items: end;       /* all bars grow upward from the same baseline */
-      height: 180px;
+      align-items: end;
+      height: 100%;
       gap: 3px;
       position: relative;
       z-index: 1;
-    }
-
-    .bar-wrap {
-      display: flex;
-      flex-direction: column;
-      align-items: center;
-      height: 100%;
-      justify-content: flex-end;  /* bar + label stack from the bottom */
     }
 
     .bar {
@@ -208,24 +206,32 @@
       border-radius: 3px 3px 0 0;
       background: rgba(34,197,94,0.45);
       transition: background 0.3s;
-      /* no min-height — zero-value hours get zero height = flat baseline */
     }
     .bar.active  { background: var(--ok); }
     .bar.low-bar { background: rgba(245,158,11,0.7); }
 
-    .bar-label {
+    /* axis-row: sits directly below bar-zone, same 24-col grid, perfectly flat */
+    .axis-row {
+      display: grid;
+      grid-template-columns: repeat(24, 1fr);
+      gap: 3px;
+      border-top: 1px solid var(--border);
+      padding-top: 5px;
+      margin-top: 1px;
+    }
+    .axis-label {
       font-size: 0.55rem;
       color: var(--muted);
-      margin-top: 4px;
       text-align: center;
       line-height: 1;
     }
 
-    /* SVG overlays — same footprint as bar-chart, pointer-events off */
+    /* SVG overlays — cover only the bar-zone, not the axis */
     .irrad-svg, .ref-svg {
       position: absolute;
       top: 0; left: 0;
       width: 100%;
+      height: 100%;
       pointer-events: none;
       overflow: visible;
     }
@@ -328,11 +334,14 @@
       </div>
     </div>
 
-    <!-- chart-area: irrad behind, bars middle, ref-line on top -->
+    <!-- chart-area: bar-zone (with SVG overlays) + axis-row below -->
     <div class="chart-area" id="chart-area">
-      <svg class="irrad-svg" id="irrad-svg"></svg>
-      <div class="bar-chart"  id="bar-chart"></div>
-      <svg class="ref-svg"   id="ref-svg"></svg>
+      <div class="bar-zone" id="bar-zone">
+        <svg class="irrad-svg" id="irrad-svg"></svg>
+        <div class="bar-chart"  id="bar-chart"></div>
+        <svg class="ref-svg"   id="ref-svg"></svg>
+      </div>
+      <div class="axis-row" id="axis-row"></div>
     </div>
   </div>
 
@@ -367,9 +376,7 @@
     "?latitude=-33.5299939205017&longitude=25.690127941130985" +
     "&hourly=direct_radiation&forecast_days=1&timezone=Africa%2FJohannesburg";
 
-  const CHART_H = 180;   // must match CSS .bar-chart height
-  const LABEL_H = 18;    // label row below bars
-  const DRAW_H  = CHART_H - LABEL_H;
+  const CHART_H = 160;   // matches CSS .bar-zone height (used for reference only)
 
   const STATUS_CONFIG = {
     ok:      { icon: "☀️",  label: "System OK",      sub: "Generating within normal range",         cls: "ok"      },
@@ -480,10 +487,12 @@
   // ── Chart rendering ───────────────────────────────────────────────────────
   function renderChart(hourly, lastHour, month, dailyExp, status, irradiation) {
     const chart    = document.getElementById("bar-chart");
+    const axisRow  = document.getElementById("axis-row");
     const refSvg   = document.getElementById("ref-svg");
     const irradSvg = document.getElementById("irrad-svg");
 
     chart.innerHTML    = "";
+    axisRow.innerHTML  = "";
     refSvg.innerHTML   = "";
     irradSvg.innerHTML = "";
 
@@ -491,79 +500,73 @@
     const hourlyExp = Array.from({ length: 24 }, (_, h) => expectedThisHour(h, month, dailyExp));
     const maxVal    = Math.max(...hourly, ...hourlyExp, 0.01);
 
-    // ── Bars ─────────────────────────────────────────────────────────────────
-    // Using CSS grid so every column is exactly equal width → flat baseline
+    // ── Bars (one div per hour, direct children of the grid) ─────────────────
     for (let h = 0; h < 24; h++) {
-      const val   = hourly[h] || 0;
-      // Height as % of the draw area (bar section only, not label)
-      // Multiplied by (DRAW_H/CHART_H) so 100% of bar area = full height
-      const hPct  = (val / maxVal) * (DRAW_H / CHART_H) * 100;
-
-      const wrap = document.createElement("div");
-      wrap.className = "bar-wrap";
+      const val  = hourly[h] || 0;
+      const hPct = (val / maxVal) * 100;
 
       const bar = document.createElement("div");
-      bar.className  = "bar"
+      bar.className = "bar"
         + (h === lastHour ? " active" : "")
         + (status !== "ok" && h === lastHour && val > 0 ? " low-bar" : "");
       bar.style.height = hPct + "%";
       bar.title = `${h}:00  actual: ${val.toFixed(2)} kWh  expected: ${hourlyExp[h].toFixed(2)} kWh`;
+      chart.appendChild(bar);
+    }
 
+    // ── Axis labels (separate row, same 24-col grid) ──────────────────────────
+    for (let h = 0; h < 24; h++) {
       const lbl = document.createElement("div");
-      lbl.className   = "bar-label";
+      lbl.className   = "axis-label";
       lbl.textContent = (h % 3 === 0) ? String(h) : "";
-
-      wrap.appendChild(bar);
-      wrap.appendChild(lbl);
-      chart.appendChild(wrap);
+      axisRow.appendChild(lbl);
     }
 
     // ── SVG overlays — after layout settles ──────────────────────────────────
     requestAnimationFrame(() => {
       const chartRect = chart.getBoundingClientRect();
-      const barWraps  = Array.from(chart.querySelectorAll(".bar-wrap"));
-      if (!barWraps.length) return;
+      const bars      = Array.from(chart.querySelectorAll(".bar"));
+      if (!bars.length) return;
 
-      // Set SVG height to match rendered bar-chart
-      const svgH = chartRect.height;
+      const drawH = chartRect.height;
+
+      // SVGs cover the bar-zone exactly
       [irradSvg, refSvg].forEach(s => {
-        s.setAttribute("height", svgH);
-        s.style.height = svgH + "px";
+        s.setAttribute("height", drawH);
+        s.style.height = drawH + "px";
       });
 
       // x centre of each bar column
-      const xs = barWraps.map(w => {
-        const r = w.getBoundingClientRect();
+      const xs = bars.map(b => {
+        const r = b.getBoundingClientRect();
         return r.left - chartRect.left + r.width / 2;
       });
 
-      // The drawable height (excluding label row at bottom)
-      // Label area = LABEL_H px, so draw zone = svgH - LABEL_H
-      const drawH = svgH - LABEL_H;
+      // ── Irradiation filled area (shifted 1h earlier: index h draws at h-1) ──
+      // Shift by prepending a 0 and dropping the last value so the curve
+      // appears one hour to the left on the same x-axis positions
+      const irradShifted = [0, ...irradiation.slice(0, 23)];
+      const maxIrrad = Math.max(...irradShifted, 1);
 
-      // ── Irradiation filled area ─────────────────────────────────────────
-      const maxIrrad = Math.max(...irradiation, 1);
-      if (irradiation.some(v => v > 0)) {
-        // Build smooth path along the top edge of irradiation
+      if (irradShifted.some(v => v > 0)) {
         let d = "";
-        irradiation.forEach((v, h) => {
+        irradShifted.forEach((v, h) => {
           const x = xs[h];
           const y = drawH - (v / maxIrrad) * drawH;
           d += h === 0 ? `M ${x},${y}` : ` L ${x},${y}`;
         });
-        // Close polygon back along the baseline
         d += ` L ${xs[23]},${drawH} L ${xs[0]},${drawH} Z`;
 
         const area = document.createElementNS("http://www.w3.org/2000/svg", "path");
-        area.setAttribute("d", d);
-        area.setAttribute("fill",         "rgba(250,204,21,0.13)");
-        area.setAttribute("stroke",       "rgba(250,204,21,0.45)");
-        area.setAttribute("stroke-width", "1.5");
-        area.setAttribute("stroke-linejoin", "round");
+        area.setAttribute("d",                  d);
+        area.setAttribute("fill",               "rgba(250,204,21,0.13)");
+        area.setAttribute("stroke",             "rgba(250,204,21,0.45)");
+        area.setAttribute("stroke-width",       "1.5");
+        area.setAttribute("stroke-linejoin",    "round");
         irradSvg.appendChild(area);
       }
 
-      // ── Expected reference line ─────────────────────────────────────────
+      // ── Expected reference line ─────────────────────────────────────────────
       const pts = xs.map((x, h) => {
         const y = drawH - (hourlyExp[h] / maxVal) * drawH;
         return `${x.toFixed(1)},${y.toFixed(1)}`;
