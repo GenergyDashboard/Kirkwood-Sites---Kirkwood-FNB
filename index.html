@@ -468,14 +468,22 @@
     document.getElementById("last-hour").textContent = lastHour + ":00";
     const pctDay = dailyExp > 0 ? ((total / dailyExp) * 100).toFixed(0) + "%" : "—";
     document.getElementById("pct-day").textContent = pctDay;
-    const expNow  = expectedByHour(lastHour, month, dailyExp);
+    // % of expected cumulative by this hour
+    // Use irradiation-weighted cumulative if available, else sine-bell
+    const irradTotal  = irradiation.reduce((s, v) => s + v, 0);
+    const expNow = irradTotal > 0
+      ? irradiation.slice(0, lastHour + 1).reduce((s, v) => s + dailyExp * (v / irradTotal), 0)
+      : expectedByHour(lastHour, month, dailyExp);
     const pctHour = expNow > 0 ? ((total / expNow) * 100).toFixed(0) + "%" : "—";
     document.getElementById("pct-hour").textContent = pctHour;
 
     // Threshold pills
     document.getElementById("thr-expected").textContent = dailyExp.toLocaleString() + " kWh";
     document.getElementById("thr-low").textContent      = lowDay.toLocaleString() + " kWh";
-    document.getElementById("thr-hour").textContent     = expectedThisHour(lastHour, month, dailyExp).toFixed(1) + " kWh";
+    const thisHourExp = irradTotal > 0
+      ? dailyExp * (irradiation[lastHour] / irradTotal)
+      : expectedThisHour(lastHour, month, dailyExp);
+    document.getElementById("thr-hour").textContent = thisHourExp.toFixed(1) + " kWh";
 
     // Footer
     document.getElementById("footer").textContent = "FusionSolar · " + (data.date || "");
@@ -496,8 +504,14 @@
     refSvg.innerHTML   = "";
     irradSvg.innerHTML = "";
 
-    // Per-hour expected values
-    const hourlyExp = Array.from({ length: 24 }, (_, h) => expectedThisHour(h, month, dailyExp));
+    // Per-hour expected values — use irradiation shape when available,
+    // fall back to pure sine-bell curve if irradiation data is missing.
+    // Irradiation (W/m²) tells us the relative solar resource each hour;
+    // we distribute dailyExp proportionally across those hours.
+    const irradTotal = irradiation.reduce((s, v) => s + v, 0);
+    const hourlyExp = irradTotal > 0
+      ? irradiation.map(v => dailyExp * (v / irradTotal))
+      : Array.from({ length: 24 }, (_, h) => expectedThisHour(h, month, dailyExp));
     const maxVal    = Math.max(...hourly, ...hourlyExp, 0.01);
 
     // ── Bars (one div per hour, direct children of the grid) ─────────────────
