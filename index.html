@@ -484,6 +484,7 @@
       ? dailyExp * (irradiation[lastHour] / irradTotal)
       : expectedThisHour(lastHour, month, dailyExp);
     document.getElementById("thr-hour").textContent = thisHourExp.toFixed(1) + " kWh";
+    document.querySelector(".pill.blue .pill-lbl").textContent = `Exp. ${lastHour}:00–${lastHour+1}:00`;
 
     // Footer
     document.getElementById("footer").textContent = "FusionSolar · " + (data.date || "");
