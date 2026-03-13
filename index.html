@@ -504,13 +504,15 @@
     refSvg.innerHTML   = "";
     irradSvg.innerHTML = "";
 
+    // Shift irradiation 1h earlier (same shift used for the display area)
+    const irradShifted = [...irradiation.slice(1), 0];
+
     // Per-hour expected values — use irradiation shape when available,
     // fall back to pure sine-bell curve if irradiation data is missing.
-    // Irradiation (W/m²) tells us the relative solar resource each hour;
-    // we distribute dailyExp proportionally across those hours.
-    const irradTotal = irradiation.reduce((s, v) => s + v, 0);
+    // Use the same shifted array so the expected line aligns with the area.
+    const irradTotal = irradShifted.reduce((s, v) => s + v, 0);
     const hourlyExp = irradTotal > 0
-      ? irradiation.map(v => dailyExp * (v / irradTotal))
+      ? irradShifted.map(v => dailyExp * (v / irradTotal))
       : Array.from({ length: 24 }, (_, h) => expectedThisHour(h, month, dailyExp));
     const maxVal    = Math.max(...hourly, ...hourlyExp, 0.01);
 
@@ -556,12 +558,8 @@
         return r.left - chartRect.left + r.width / 2;
       });
 
-      // ── Irradiation filled area (shifted 1h earlier: index h draws at h-1) ──
-      // Shift by prepending a 0 and dropping the last value so the curve
-      // appears one hour to the left on the same x-axis positions
-      const irradShifted = [...irradiation.slice(1), 0];
+      // ── Irradiation filled area ─────────────────────────────────────────
       const maxIrrad = Math.max(...irradShifted, 1);
-
       if (irradShifted.some(v => v > 0)) {
         let d = "";
         irradShifted.forEach((v, h) => {
